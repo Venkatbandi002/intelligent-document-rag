@@ -1,0 +1,102 @@
+[
+  {
+    "id": "q1",
+    "question": "What is the company's annual leave policy?",
+    "expected_answer": "Full-time employees are entitled to 20 days of paid annual leave per calendar year. Leave requests exceeding 3 consecutive days require two weeks advance submission, and a maximum of 5 days can be carried over.",
+    "expected_sources": [
+      {
+        "document_name": "Company_Policy.pdf",
+        "page_number": 2
+      }
+    ]
+  },
+  {
+    "id": "q2",
+    "question": "How many days of sick leave are provided and when is a medical certificate required?",
+    "expected_answer": "Employees receive 10 days of paid sick leave per year. Absences exceeding 2 consecutive days require a certified medical certificate from a licensed physician.",
+    "expected_sources": [
+      {
+        "document_name": "Company_Policy.pdf",
+        "page_number": 2
+      }
+    ]
+  },
+  {
+    "id": "q3",
+    "question": "What is the daily meal allowance during business travel?",
+    "expected_answer": "The daily meal allowance is capped at $75 USD per day, with itemized tax receipts required for all expense claims.",
+    "expected_sources": [
+      {
+        "document_name": "Company_Policy.pdf",
+        "page_number": 3
+      }
+    ]
+  },
+  {
+    "id": "q4",
+    "question": "What are the standard working hours and remote work policy?",
+    "expected_answer": "Standard working hours are 40 hours per week (9:00 AM to 5:00 PM), with core collaboration hours between 10:00 AM and 3:00 PM. Employees in eligible technical roles may work remotely up to 3 days per week with manager approval.",
+    "expected_sources": [
+      {
+        "document_name": "Employee_Handbook.pdf",
+        "page_number": 1
+      }
+    ]
+  },
+  {
+    "id": "q5",
+    "question": "How does the company 401(k) match work?",
+    "expected_answer": "The company matches 100% of employee contributions up to 4% of base salary, and 50% on the next 2%, with immediate 100% vesting from day one.",
+    "expected_sources": [
+      {
+        "document_name": "Employee_Handbook.pdf",
+        "page_number": 2
+      }
+    ]
+  },
+  {
+    "id": "q6",
+    "question": "What is the annual education stipend amount for professional development?",
+    "expected_answer": "Each full-time employee has access to an annual education stipend of $1,500 USD for technical certifications, conferences, and books.",
+    "expected_sources": [
+      {
+        "document_name": "Employee_Handbook.pdf",
+        "page_number": 3
+      }
+    ]
+  },
+  {
+    "id": "q7",
+    "question": "What are the minimum hardware specifications for Titan Cloud Gateway?",
+    "expected_answer": "Minimum hardware specs are 4 vCPU cores, 8 GB RAM, and 50 GB NVMe storage, running on Linux kernel 5.15 or newer with eBPF network acceleration.",
+    "expected_sources": [
+      {
+        "document_name": "Product_Manual.pdf",
+        "page_number": 1
+      }
+    ]
+  },
+  {
+    "id": "q8",
+    "question": "What rate limiting mechanism and default request limit is enforced by Titan Gateway?",
+    "expected_answer": "A distributed Redis-backed sliding window token bucket algorithm limits traffic to 1,000 requests per minute per IP address. Exceeded limits return HTTP status code 429.",
+    "expected_sources": [
+      {
+        "document_name": "Product_Manual.pdf",
+        "page_number": 2
+      }
+    ]
+  },
+  {
+    "id": "q9",
+    "question": "What is the intern stock option equity grant schedule?",
+    "expected_answer": "I could not find sufficient information in the uploaded documents to answer your question.",
+    "expected_sources": []
+  },
+  {
+    "id": "q10",
+    "question": "How do you install the solar photovoltaic inverter panel?",
+    "expected_answer": "I could not find sufficient information in the uploaded documents to answer your question.",
+    "expected_sources": []
+  }
+]
