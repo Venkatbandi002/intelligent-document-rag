@@ -26,9 +26,9 @@ class LLMService:
     and a local Grounded Extractive Mock for zero-key offline testing.
     """
 
-    def __init__(self, provider: Optional[str] = None):
-        self.provider = provider or settings.LLM_PROVIDER
-        logger.info(f"Initialized LLMService with provider '{self.provider}'.")
+    @property
+    def provider(self) -> str:
+        return settings.LLM_PROVIDER
 
     def generate_grounded_answer(
         self,
@@ -55,12 +55,13 @@ Instructions: Answer the question using ONLY the context above. Cite every factu
 
 Answer:"""
 
-        if self.provider == "openai" and settings.OPENAI_API_KEY:
-            return self._call_openai(user_prompt)
-        elif self.provider == "gemini" and settings.GEMINI_API_KEY:
-            return self._call_gemini(user_prompt)
-        elif self.provider == "ollama":
-            return self._call_ollama(user_prompt)
+        active_provider = settings.LLM_PROVIDER
+        if (active_provider == "gemini" or settings.GEMINI_API_KEY) and settings.GEMINI_API_KEY:
+            return self._call_gemini(user_prompt, context_passages, query)
+        elif active_provider == "openai" and settings.OPENAI_API_KEY:
+            return self._call_openai(user_prompt, context_passages, query)
+        elif active_provider == "ollama":
+            return self._call_ollama(user_prompt, context_passages, query)
         else:
             return self._call_mock_grounded_extractor(query, context_passages)
 
@@ -73,7 +74,7 @@ Answer:"""
             blocks.append(f"Passage [{i}] - Source: {doc}, Page {page}\nContent: {text}")
         return "\n\n".join(blocks)
 
-    def _call_openai(self, prompt: str) -> str:
+    def _call_openai(self, prompt: str, passages: List[Dict[str, Any]], query: str) -> str:
         try:
             from openai import OpenAI
             client = OpenAI(api_key=settings.OPENAI_API_KEY)
@@ -89,14 +90,49 @@ Answer:"""
             return response.choices[0].message.content.strip()
         except Exception as e:
             logger.error(f"OpenAI generation error: {e}. Falling back to grounded extractor.")
-            return self._call_mock_grounded_extractor(prompt, [])
+            return self._call_mock_grounded_extractor(query, passages)
 
-    def _call_gemini(self, prompt: str) -> str:
+    def _call_gemini(self, prompt: str, passages: List[Dict[str, Any]], query: str) -> str:
+        key = (settings.GEMINI_API_KEY or "").strip()
+        model_name = settings.GEMINI_MODEL or "gemini-1.5-flash"
+        
+        # 1. Primary: Direct high-speed REST API call (no deprecated SDK dependencies)
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
+        payload = {
+            "systemInstruction": {
+                "parts": [{"text": SYSTEM_PROMPT}]
+            },
+            "contents": [
+                {"parts": [{"text": prompt}]}
+            ],
+            "generationConfig": {
+                "temperature": settings.LLM_TEMPERATURE,
+                "maxOutputTokens": settings.LLM_MAX_TOKENS,
+            }
+        }
+
+        try:
+            with httpx.Client(timeout=35.0) as client:
+                res = client.post(url, json=payload)
+                if res.status_code == 200:
+                    data = res.json()
+                    candidates = data.get("candidates", [])
+                    if candidates and "content" in candidates[0]:
+                        parts = candidates[0]["content"].get("parts", [])
+                        if parts and "text" in parts[0]:
+                            answer = parts[0]["text"].strip()
+                            logger.info(f"Generated response via Gemini REST API ({model_name}).")
+                            return answer
+                logger.warning(f"Gemini API returned status {res.status_code}: {res.text}. Trying SDK fallback...")
+        except Exception as e:
+            logger.warning(f"Direct Gemini REST call failed: {e}. Trying SDK fallback...")
+
+        # 2. Secondary fallback: google.generativeai SDK
         try:
             import google.generativeai as genai
-            genai.configure(api_key=settings.GEMINI_API_KEY)
+            genai.configure(api_key=key)
             model = genai.GenerativeModel(
-                model_name=settings.GEMINI_MODEL,
+                model_name=model_name,
                 system_instruction=SYSTEM_PROMPT
             )
             response = model.generate_content(
@@ -106,9 +142,11 @@ Answer:"""
             return response.text.strip()
         except Exception as e:
             logger.error(f"Gemini generation error: {e}. Falling back to grounded extractor.")
-            return self._call_mock_grounded_extractor(prompt, [])
 
-    def _call_ollama(self, prompt: str) -> str:
+        # 3. Graceful fallback to zero-hallucination local extractor
+        return self._call_mock_grounded_extractor(query, passages)
+
+    def _call_ollama(self, prompt: str, passages: List[Dict[str, Any]], query: str) -> str:
         try:
             url = f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/generate"
             payload = {
@@ -125,7 +163,7 @@ Answer:"""
                     logger.warning(f"Ollama API returned status {res.status_code}: {res.text}")
         except Exception as e:
             logger.error(f"Ollama generation error: {e}.")
-        return self._call_mock_grounded_extractor(prompt, [])
+        return self._call_mock_grounded_extractor(query, passages)
 
     def _call_mock_grounded_extractor(
         self,

@@ -59,6 +59,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalBody = document.getElementById("modal-body");
   const modalCloseBtn = document.getElementById("modal-close-btn");
 
+  // LLM Settings Modal DOM
+  const openLlmSettingsBtn = document.getElementById("open-llm-settings-btn");
+  const llmModal = document.getElementById("llm-modal");
+  const llmModalCloseBtn = document.getElementById("llm-modal-close-btn");
+  const llmModalCancelBtn = document.getElementById("llm-modal-cancel-btn");
+  const llmModalSaveBtn = document.getElementById("llm-modal-save-btn");
+  const modalProviderSelect = document.getElementById("modal-provider-select");
+  const geminiConfigSection = document.getElementById("gemini-config-section");
+  const modalGeminiKey = document.getElementById("modal-gemini-key");
+  const modalGeminiModel = document.getElementById("modal-gemini-model");
+  const openaiConfigSection = document.getElementById("openai-config-section");
+  const modalOpenaiKey = document.getElementById("modal-openai-key");
+  const modalOpenaiModel = document.getElementById("modal-openai-model");
+  const llmModalStatus = document.getElementById("llm-modal-status");
+
   // --- Initial Setup ---
   initSystem();
 
@@ -73,10 +88,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Health Check ---
   async function checkHealth() {
     try {
-      const res = await fetch("/health");
+      const res = await fetch("/api/v1/settings/llm");
       if (res.ok) {
         const data = await res.json();
-        systemStatusText.innerText = `Provider: ${data.llm_provider.toUpperCase()} | Embeddings: MiniLM-L6`;
+        if (data.provider === "gemini") {
+          systemStatusText.innerText = `Gemini (${data.active_model}) [ONLINE]`;
+        } else if (data.provider === "mock") {
+          systemStatusText.innerText = `Offline Grounded Extractor`;
+        } else {
+          systemStatusText.innerText = `Provider: ${data.provider.toUpperCase()}`;
+        }
       }
     } catch (e) {
       systemStatusText.innerText = "Backend offline";
@@ -318,13 +339,107 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // Modal close
+    // Passage Modal close
     modalCloseBtn.addEventListener("click", () => {
       passageModal.style.display = "none";
     });
     passageModal.addEventListener("click", (e) => {
       if (e.target === passageModal) passageModal.style.display = "none";
     });
+
+    // LLM Settings Modal Event Listeners
+    if (openLlmSettingsBtn) {
+      openLlmSettingsBtn.addEventListener("click", async () => {
+        llmModalStatus.className = "status-msg";
+        llmModalStatus.style.display = "none";
+        try {
+          const res = await fetch("/api/v1/settings/llm");
+          if (res.ok) {
+            const data = await res.json();
+            modalProviderSelect.value = data.provider;
+            if (data.provider === "gemini") {
+              modalGeminiModel.value = data.active_model;
+              if (data.has_gemini_key) {
+                modalGeminiKey.placeholder = "Key saved (leave empty to keep current)";
+              }
+            }
+            updateProviderSections(data.provider);
+          }
+        } catch (err) {
+          console.error(err);
+        }
+        llmModal.style.display = "flex";
+      });
+    }
+
+    function updateProviderSections(prov) {
+      geminiConfigSection.style.display = prov === "gemini" ? "block" : "none";
+      openaiConfigSection.style.display = prov === "openai" ? "block" : "none";
+    }
+
+    if (modalProviderSelect) {
+      modalProviderSelect.addEventListener("change", (e) => {
+        updateProviderSections(e.target.value);
+      });
+    }
+
+    const closeLlmModal = () => {
+      if (llmModal) llmModal.style.display = "none";
+    };
+    if (llmModalCloseBtn) llmModalCloseBtn.addEventListener("click", closeLlmModal);
+    if (llmModalCancelBtn) llmModalCancelBtn.addEventListener("click", closeLlmModal);
+    if (llmModal) {
+      llmModal.addEventListener("click", (e) => {
+        if (e.target === llmModal) closeLlmModal();
+      });
+    }
+
+    // Save & Connect LLM
+    if (llmModalSaveBtn) {
+      llmModalSaveBtn.addEventListener("click", async () => {
+        const provider = modalProviderSelect.value;
+        const payload = {
+          provider: provider,
+          gemini_api_key: modalGeminiKey.value.trim() || null,
+          gemini_model: modalGeminiModel.value,
+          openai_api_key: modalOpenaiKey.value.trim() || null,
+          openai_model: modalOpenaiModel.value,
+        };
+
+        llmModalSaveBtn.disabled = true;
+        llmModalSaveBtn.innerText = "Verifying Connection...";
+        llmModalStatus.innerText = "Testing API connection with Gemini...";
+        llmModalStatus.className = "status-msg info";
+        llmModalStatus.style.display = "block";
+
+        try {
+          const res = await fetch("/api/v1/settings/llm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await res.json();
+          if (res.ok) {
+            llmModalStatus.innerText = `✓ ${data.message}`;
+            llmModalStatus.className = "status-msg success";
+            await checkHealth();
+            setTimeout(() => {
+              closeLlmModal();
+            }, 1200);
+          } else {
+            llmModalStatus.innerText = `Error: ${data.detail || "Connection failed"}`;
+            llmModalStatus.className = "status-msg error";
+          }
+        } catch (e) {
+          llmModalStatus.innerText = `Network error: ${e.message}`;
+          llmModalStatus.className = "status-msg error";
+        } finally {
+          llmModalSaveBtn.disabled = false;
+          llmModalSaveBtn.innerText = "Save & Connect";
+        }
+      });
+    }
   }
 
   // --- Document Loading & Listing ---
@@ -504,6 +619,10 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
     }
 
+    const latencyText = resp.latency_breakdown
+      ? `<span title="ChromaDB Retrieval: ${resp.latency_breakdown.retrieval_ms}ms | BM25 Rerank: ${resp.latency_breakdown.rerank_ms}ms | LLM Synthesis: ${resp.latency_breakdown.synthesis_ms}ms" style="cursor:help;">⚡ ${resp.latency_ms} ms (retrieval: ${resp.latency_breakdown.retrieval_ms}ms • rerank: ${resp.latency_breakdown.rerank_ms}ms)</span>`
+      : `<span>⚡ ${resp.latency_ms} ms</span>`;
+
     div.innerHTML = `
       <div class="msg-bubble">
         <div class="msg-header">
@@ -511,7 +630,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <strong>DocRAG Engine (${resp.model_used})</strong>
             ${groundedBadge}
           </div>
-          <span>Latency: ${resp.latency_ms} ms</span>
+          ${latencyText}
         </div>
         <div class="msg-text">${formatAnswerMarkdown(resp.answer)}</div>
         ${sourcesHtml}

@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.app.api.routes_chat import router as chat_router
 from backend.app.api.routes_documents import router as documents_router
 from backend.app.api.routes_evaluation import router as evaluation_router
+from backend.app.api.routes_settings import router as settings_router
 from backend.app.core.config import settings
 from backend.app.core.logging import logger
 from backend.app.database.models import init_db
@@ -42,6 +43,7 @@ app.add_middleware(
 app.include_router(documents_router, prefix=settings.API_V1_PREFIX)
 app.include_router(chat_router, prefix=settings.API_V1_PREFIX)
 app.include_router(evaluation_router, prefix=settings.API_V1_PREFIX)
+app.include_router(settings_router, prefix=settings.API_V1_PREFIX)
 
 
 # Health check

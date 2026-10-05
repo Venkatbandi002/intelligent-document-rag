@@ -38,22 +38,24 @@ class RAGService:
         enable_reranking: Optional[bool] = None,
         document_filter: Optional[str] = None,
     ) -> ChatResponse:
-        start_time = time.time()
+        t_start = time.time()
         k = top_k or settings.DEFAULT_TOP_K
         use_rerank = settings.ENABLE_RERANKING if enable_reranking is None else enable_reranking
 
         filter_dict = {"document_name": document_filter} if document_filter else None
 
         # 1. Retrieve candidates from ChromaDB
-        # Fetch slightly more candidates if reranking is enabled
+        t_retrieval_start = time.time()
         fetch_k = k * 2 if use_rerank else k
         raw_candidates = self.vector_store.similarity_search(
             query=question,
             top_k=fetch_k,
             filter_dict=filter_dict,
         )
+        retrieval_ms = round((time.time() - t_retrieval_start) * 1000, 2)
 
         # 2. Apply reranking if enabled
+        t_rerank_start = time.time()
         if use_rerank and raw_candidates:
             active_passages = self.reranker.rerank(
                 query=question,
@@ -62,9 +64,11 @@ class RAGService:
             )
         else:
             active_passages = raw_candidates[:k]
+        rerank_ms = round((time.time() - t_rerank_start) * 1000, 2)
 
         # 3. Grounding check & empty context handling
         is_grounded = True
+        synthesis_ms = 0.0
         if not active_passages:
             answer = settings.NO_ANSWER_FALLBACK
             is_grounded = False
@@ -82,17 +86,26 @@ class RAGService:
                 sources = []
             else:
                 # 4. Generate grounded LLM response
+                t_synth_start = time.time()
                 answer = self.llm_service.generate_grounded_answer(
                     query=question,
                     context_passages=active_passages,
                 )
+                synthesis_ms = round((time.time() - t_synth_start) * 1000, 2)
+
                 if settings.NO_ANSWER_FALLBACK.lower() in answer.lower():
                     is_grounded = False
                     sources = []
                 else:
                     sources = self._extract_citations(answer, active_passages)
 
-        elapsed_ms = round((time.time() - start_time) * 1000, 2)
+        total_ms = round((time.time() - t_start) * 1000, 2)
+        breakdown = {
+            "retrieval_ms": retrieval_ms,
+            "rerank_ms": rerank_ms,
+            "synthesis_ms": synthesis_ms,
+            "total_ms": total_ms,
+        }
 
         # Format retrieved passages for frontend inspection
         retrieved_dto = [
@@ -114,7 +127,7 @@ class RAGService:
             answer=answer,
             sources=sources,
             passages=retrieved_dto,
-            latency_ms=elapsed_ms,
+            latency_ms=total_ms,
         )
 
         return ChatResponse(
@@ -124,8 +137,11 @@ class RAGService:
             sources=sources,
             retrieved_passages=retrieved_dto,
             is_grounded=is_grounded,
-            latency_ms=elapsed_ms,
-            model_used=f"{self.llm_service.provider.upper()}",
+            latency_ms=total_ms,
+            latency_breakdown=breakdown,
+            model_used=f"GEMINI ({settings.GEMINI_MODEL})" if settings.LLM_PROVIDER == "gemini" else (
+                f"OPENAI ({settings.OPENAI_MODEL})" if settings.LLM_PROVIDER == "openai" else settings.LLM_PROVIDER.upper()
+            ),
         )
 
     def _extract_citations(

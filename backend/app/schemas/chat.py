@@ -26,6 +26,13 @@ class ChatRequest(BaseModel):
     document_filter: Optional[str] = Field(None, description="Optional document name filter")
 
 
+class LatencyBreakdown(BaseModel):
+    retrieval_ms: float = 0.0
+    rerank_ms: float = 0.0
+    synthesis_ms: float = 0.0
+    total_ms: float = 0.0
+
+
 class ChatResponse(BaseModel):
     conversation_id: str
     question: str
@@ -34,6 +41,7 @@ class ChatResponse(BaseModel):
     retrieved_passages: List[RetrievedPassage] = Field(default_factory=list)
     is_grounded: bool = True
     latency_ms: float
+    latency_breakdown: Optional[LatencyBreakdown] = None
     model_used: str
 
 
