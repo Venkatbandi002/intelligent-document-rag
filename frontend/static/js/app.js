@@ -5,12 +5,30 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeDocuments = [];
   let conversationId = "conv_" + Math.random().toString(36).substring(2, 9);
 
-  // DOM Elements
-  const tabButtons = document.querySelectorAll(".nav-tab");
-  const tabPanes = document.querySelectorAll(".tab-pane");
+  // Layout & Top Nav DOM
+  const sidebar = document.getElementById("sidebar");
+  const sidebarToggleBtn = document.getElementById("sidebar-toggle-btn");
+  const dockBar = document.getElementById("dock-bar");
+  const dockLeftCol = document.getElementById("dock-left-col");
+  const dockCenterCol = document.getElementById("dock-center-col");
+  const dockCollapsedBrand = document.getElementById("dock-collapsed-brand");
+  const dockSidebarExpandBtn = document.getElementById("dock-sidebar-expand-btn");
+  const activeViewName = document.getElementById("active-view-name");
   const systemStatusText = document.getElementById("system-status-text");
 
-  // Ingestion DOM
+  // Sidebar Navigation & Actions DOM
+  const navItems = document.querySelectorAll(".sidebar-nav-item");
+  const tabPanes = document.querySelectorAll(".tab-pane");
+  const newChatBtn = document.getElementById("new-chat-btn");
+  const recentsList = document.getElementById("recents-list");
+  const tabDocCount = document.getElementById("tab-doc-count");
+  const sidebarChunkCount = document.getElementById("sidebar-chunk-count");
+  const clearChatBtn = document.getElementById("clear-chat-btn");
+
+  // Ingestion & Drawer DOM
+  const ingestDrawerBtn = document.getElementById("ingest-drawer-btn");
+  const ingestDrawerBody = document.getElementById("ingest-drawer-body");
+  const drawerArrow = document.getElementById("drawer-arrow");
   const uploadForm = document.getElementById("upload-form");
   const fileInput = document.getElementById("file-input");
   const dropzoneTrigger = document.getElementById("dropzone-trigger");
@@ -21,6 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const chunkOverlapInput = document.getElementById("chunk-overlap");
   const chunkSizeVal = document.getElementById("chunk-size-val");
   const chunkOverlapVal = document.getElementById("chunk-overlap-val");
+  const loadSampleDocsBtn = document.getElementById("load-sample-docs-btn");
 
   // Retrieval Settings DOM
   const topKSlider = document.getElementById("top-k-slider");
@@ -29,13 +48,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const docFilterSelect = document.getElementById("doc-filter-select");
   const activeConfigIndicator = document.getElementById("active-config-indicator");
 
-  // Sidebar & Document Repository DOM
-  const sidebarDocList = document.getElementById("sidebar-doc-list");
-  const sidebarChunkCount = document.getElementById("sidebar-chunk-count");
-  const tabDocCount = document.getElementById("tab-doc-count");
+  // Document Repository Tab DOM
   const docsTableBody = document.getElementById("docs-table-body");
-  const loadSampleDocsBtn = document.getElementById("load-sample-docs-btn");
-  const clearChatBtn = document.getElementById("clear-chat-btn");
 
   // Chat DOM
   const chatStream = document.getElementById("chat-stream");
@@ -72,6 +86,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const openaiConfigSection = document.getElementById("openai-config-section");
   const modalOpenaiKey = document.getElementById("modal-openai-key");
   const modalOpenaiModel = document.getElementById("modal-openai-model");
+  const ollamaConfigSection = document.getElementById("ollama-config-section");
+  const modalOllamaModel = document.getElementById("modal-ollama-model");
+  const modalOllamaUrl = document.getElementById("modal-ollama-url");
   const llmModalStatus = document.getElementById("llm-modal-status");
 
   // --- Initial Setup ---
@@ -80,8 +97,10 @@ document.addEventListener("DOMContentLoaded", () => {
   async function initSystem() {
     setupTabSwitching();
     setupEventListeners();
+    attachPillListeners();
     await checkHealth();
     await loadDocuments();
+    await loadConversations();
     await loadDashboardStats();
   }
 
@@ -93,10 +112,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await res.json();
         if (data.provider === "gemini") {
           systemStatusText.innerText = `Gemini (${data.active_model}) [ONLINE]`;
+        } else if (data.provider === "ollama") {
+          const statusTag = data.status === "online" ? "[ONLINE]" : "[ACTIVE]";
+          systemStatusText.innerText = `Ollama (${data.active_model}) ${statusTag}`;
         } else if (data.provider === "mock") {
           systemStatusText.innerText = `Offline Grounded Extractor`;
         } else {
-          systemStatusText.innerText = `Provider: ${data.provider.toUpperCase()}`;
+          systemStatusText.innerText = `Provider: ${data.provider.toUpperCase()} (${data.active_model})`;
         }
       }
     } catch (e) {
@@ -104,248 +126,330 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // --- Tab Switching ---
+  // --- Tab & View Switching ---
+  function switchTab(target) {
+    navItems.forEach((b) => {
+      b.classList.toggle("active", b.getAttribute("data-tab") === target);
+    });
+    tabPanes.forEach((p) => {
+      p.classList.toggle("active", p.id === target);
+    });
+    activeTab = target;
+
+    if (activeViewName) {
+      const titles = {
+        "chat-tab": "Chat & Grounded Retrieval",
+        "ingest-tab": "PDF Ingestion & RAG Tuning Studio",
+        "docs-tab": "Document Repository & Vectors",
+        "eval-tab": "RAG Evaluation Dashboard",
+        "benchmark-tab": "Optimization Benchmark Matrix",
+      };
+      activeViewName.innerText = titles[target] || "DocRAG";
+    }
+
+    if (target === "eval-tab") {
+      loadDashboardStats();
+    } else if (target === "docs-tab" || target === "ingest-tab") {
+      loadDocuments();
+    }
+  }
+
   function setupTabSwitching() {
-    tabButtons.forEach((btn) => {
+    navItems.forEach((btn) => {
       btn.addEventListener("click", () => {
         const target = btn.getAttribute("data-tab");
-        tabButtons.forEach((b) => b.classList.remove("active"));
-        tabPanes.forEach((p) => p.classList.remove("active"));
-        btn.classList.add("active");
-        document.getElementById(target).classList.add("active");
-        activeTab = target;
-        if (target === "eval-tab") {
-          loadDashboardStats();
-        }
+        switchTab(target);
       });
     });
   }
 
+  function setSidebarCollapsed(collapsed) {
+    if (!sidebar) return;
+    sidebar.classList.toggle("collapsed", collapsed);
+    if (dockBar) dockBar.classList.toggle("sidebar-collapsed", collapsed);
+    if (dockCollapsedBrand) {
+      dockCollapsedBrand.style.display = collapsed ? "flex" : "none";
+    }
+    if (activeViewName) {
+      if (collapsed && dockCenterCol) {
+        dockCenterCol.appendChild(activeViewName);
+      } else if (!collapsed && dockLeftCol) {
+        dockLeftCol.appendChild(activeViewName);
+      }
+    }
+  }
+
   // --- Event Listeners ---
   function setupEventListeners() {
+    // Sidebar collapse & expand toggles
+    if (sidebarToggleBtn && sidebar) {
+      sidebarToggleBtn.addEventListener("click", () => {
+        const isCollapsed = !sidebar.classList.contains("collapsed");
+        setSidebarCollapsed(isCollapsed);
+      });
+    }
+
+    if (dockSidebarExpandBtn && sidebar) {
+      dockSidebarExpandBtn.addEventListener("click", () => {
+        setSidebarCollapsed(false);
+      });
+    }
+
+    // Ingestion drawer toggle
+    if (ingestDrawerBtn && ingestDrawerBody) {
+      ingestDrawerBtn.addEventListener("click", () => {
+        const isHidden = ingestDrawerBody.style.display === "none";
+        ingestDrawerBody.style.display = isHidden ? "block" : "none";
+        if (drawerArrow) {
+          drawerArrow.innerText = isHidden ? "▴" : "▾";
+        }
+      });
+    }
+
+    // New Chat Button
+    if (newChatBtn) {
+      newChatBtn.addEventListener("click", () => {
+        startNewChat();
+      });
+    }
+
     // Advanced params toggle
-    advancedToggle.addEventListener("click", () => {
-      const isHidden = advancedParams.style.display === "none";
-      advancedParams.style.display = isHidden ? "flex" : "none";
-      advancedToggle.innerText = isHidden ? "Ingestion Config ▴" : "Ingestion Config ▾";
-    });
+    if (advancedToggle && advancedParams) {
+      advancedToggle.addEventListener("click", () => {
+        const isHidden = advancedParams.style.display === "none";
+        advancedParams.style.display = isHidden ? "flex" : "none";
+        advancedToggle.innerText = isHidden ? "Chunking Parameters ▴" : "Chunking Parameters ▾";
+      });
+    }
 
-    chunkSizeInput.addEventListener("input", (e) => {
-      chunkSizeVal.innerText = e.target.value;
-    });
+    if (chunkSizeInput && chunkSizeVal) {
+      chunkSizeInput.addEventListener("input", (e) => {
+        chunkSizeVal.innerText = e.target.value;
+      });
+    }
 
-    chunkOverlapInput.addEventListener("input", (e) => {
-      chunkOverlapVal.innerText = e.target.value;
-    });
+    if (chunkOverlapInput && chunkOverlapVal) {
+      chunkOverlapInput.addEventListener("input", (e) => {
+        chunkOverlapVal.innerText = e.target.value;
+      });
+    }
 
-    topKSlider.addEventListener("input", (e) => {
-      topKVal.innerText = e.target.value;
-      updateConfigIndicator();
-    });
+    if (topKSlider && topKVal) {
+      topKSlider.addEventListener("input", (e) => {
+        topKVal.innerText = e.target.value;
+        updateConfigIndicator();
+      });
+    }
 
-    rerankToggle.addEventListener("change", () => {
-      updateConfigIndicator();
-    });
+    if (rerankToggle) {
+      rerankToggle.addEventListener("change", () => {
+        updateConfigIndicator();
+      });
+    }
 
     function updateConfigIndicator() {
-      const k = topKSlider.value;
-      const rerank = rerankToggle.checked ? "ON" : "OFF";
+      if (!activeConfigIndicator) return;
+      const k = topKSlider ? topKSlider.value : 4;
+      const rerank = rerankToggle && rerankToggle.checked ? "ON" : "OFF";
       activeConfigIndicator.innerText = `Top-K: ${k} | Rerank: ${rerank}`;
     }
 
     // Dropzone triggers
-    dropzoneTrigger.addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", () => {
-      if (fileInput.files.length > 0) {
-        uploadForm.requestSubmit();
-      }
-    });
+    if (dropzoneTrigger && fileInput) {
+      dropzoneTrigger.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files.length > 0) {
+          uploadForm.requestSubmit();
+        }
+      });
 
-    // Drag and drop
-    dropzoneTrigger.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      dropzoneTrigger.style.borderColor = "var(--accent-primary)";
-    });
-    dropzoneTrigger.addEventListener("dragleave", () => {
-      dropzoneTrigger.style.borderColor = "var(--border-color)";
-    });
-    dropzoneTrigger.addEventListener("drop", (e) => {
-      e.preventDefault();
-      dropzoneTrigger.style.borderColor = "var(--border-color)";
-      if (e.dataTransfer.files.length > 0) {
-        fileInput.files = e.dataTransfer.files;
-        uploadForm.requestSubmit();
-      }
-    });
+      // Drag and drop
+      dropzoneTrigger.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzoneTrigger.style.borderColor = "var(--blue-primary)";
+      });
+      dropzoneTrigger.addEventListener("dragleave", () => {
+        dropzoneTrigger.style.borderColor = "";
+      });
+      dropzoneTrigger.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzoneTrigger.style.borderColor = "";
+        if (e.dataTransfer.files.length > 0) {
+          fileInput.files = e.dataTransfer.files;
+          uploadForm.requestSubmit();
+        }
+      });
+    }
 
     // Upload Form Submit
-    uploadForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      if (!fileInput.files || fileInput.files.length === 0) return;
+    if (uploadForm) {
+      uploadForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!fileInput.files || fileInput.files.length === 0) return;
 
-      const file = fileInput.files[0];
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("chunk_size", chunkSizeInput.value);
-      formData.append("chunk_overlap", chunkOverlapInput.value);
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("chunk_size", chunkSizeInput.value);
+        formData.append("chunk_overlap", chunkOverlapInput.value);
 
-      showStatus("Ingesting & embedding PDF chunks...", "info");
+        showStatus("Ingesting & embedding PDF chunks...", "info");
 
-      try {
-        const res = await fetch("/api/v1/documents/upload", {
-          method: "POST",
-          body: formData,
-        });
+        try {
+          const res = await fetch("/api/v1/documents/upload", {
+            method: "POST",
+            body: formData,
+          });
 
-        const data = await res.json();
-        if (res.ok) {
-          showStatus(
-            data.is_duplicate
-              ? `Duplicate detected: ${data.document.filename} is already indexed.`
-              : `Indexed ${data.document.filename} (${data.chunks_created} chunks)`,
-            "success"
-          );
-          fileInput.value = "";
-          await loadDocuments();
-        } else {
-          showStatus(`Upload failed: ${data.detail || "Server error"}`, "error");
+          const data = await res.json();
+          if (res.ok) {
+            showStatus(
+              data.is_duplicate
+                ? `Duplicate detected: ${data.document.filename} is already indexed.`
+                : `Indexed ${data.document.filename} (${data.chunks_created} chunks)`,
+              "success"
+            );
+            fileInput.value = "";
+            await loadDocuments();
+          } else {
+            showStatus(`Upload failed: ${data.detail || "Server error"}`, "error");
+          }
+        } catch (err) {
+          showStatus(`Upload error: ${err.message}`, "error");
         }
-      } catch (err) {
-        showStatus(`Upload error: ${err.message}`, "error");
-      }
-    });
+      });
+    }
 
     // Load Sample Docs Demo Button
-    loadSampleDocsBtn.addEventListener("click", async () => {
-      loadSampleDocsBtn.disabled = true;
-      loadSampleDocsBtn.innerText = "Indexing Sample Docs...";
-      showStatus("Generating & ingesting demo enterprise documents...", "info");
+    if (loadSampleDocsBtn) {
+      loadSampleDocsBtn.addEventListener("click", async () => {
+        loadSampleDocsBtn.disabled = true;
+        loadSampleDocsBtn.innerText = "Indexing Sample Docs...";
+        showStatus("Generating & ingesting demo enterprise documents...", "info");
 
-      try {
-        // Trigger backend evaluation generation or upload demo PDFs
-        const res = await fetch("/api/v1/evaluation/run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: "Demo Warmup Run", top_k: 4, enable_reranking: true }),
-        });
-        await loadDocuments();
-        showStatus("Sample enterprise policies ready for questioning!", "success");
-      } catch (err) {
-        showStatus("Could not auto-load sample PDFs.", "error");
-      } finally {
-        loadSampleDocsBtn.disabled = false;
-        loadSampleDocsBtn.innerText = "⚡ Load Sample Enterprise PDFs";
-      }
-    });
+        try {
+          const res = await fetch("/api/v1/evaluation/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: "Demo Warmup Run", top_k: 4, enable_reranking: true }),
+          });
+          await loadDocuments();
+          showStatus("Sample enterprise policies ready for questioning!", "success");
+        } catch (err) {
+          showStatus("Could not auto-load sample PDFs.", "error");
+        } finally {
+          loadSampleDocsBtn.disabled = false;
+          loadSampleDocsBtn.innerText = "⚡ Load Sample Enterprise PDFs";
+        }
+      });
+    }
 
     // Chat Form Submit
-    chatForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const question = chatInput.value.trim();
-      if (!question) return;
+    if (chatForm) {
+      chatForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const question = chatInput.value.trim();
+        if (!question) return;
 
-      chatInput.value = "";
-      appendUserMessage(question);
+        chatInput.value = "";
+        appendUserMessage(question);
 
-      // Loading placeholder
-      const loadingId = appendLoadingMessage();
+        // Loading placeholder
+        const loadingId = appendLoadingMessage();
 
-      try {
-        const res = await fetch("/api/v1/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question: question,
-            conversation_id: conversationId,
-            top_k: parseInt(topKSlider.value, 10),
-            enable_reranking: rerankToggle.checked,
-            document_filter: docFilterSelect.value || null,
-          }),
-        });
+        try {
+          const res = await fetch("/api/v1/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              question: question,
+              conversation_id: conversationId,
+              top_k: parseInt(topKSlider.value, 10),
+              enable_reranking: rerankToggle.checked,
+              document_filter: docFilterSelect.value || null,
+            }),
+          });
 
-        const data = await res.json();
-        removeMessage(loadingId);
+          const data = await res.json();
+          removeMessage(loadingId);
 
-        if (res.ok) {
-          appendAssistantMessage(data);
-        } else {
-          appendErrorMessage(data.detail || "Failed to retrieve grounded answer.");
+          if (res.ok) {
+            appendAssistantMessage(data);
+            await loadConversations();
+          } else {
+            appendErrorMessage(data.detail || "Failed to retrieve grounded answer.");
+          }
+        } catch (err) {
+          removeMessage(loadingId);
+          appendErrorMessage(`Network error: ${err.message}`);
         }
-      } catch (err) {
-        removeMessage(loadingId);
-        appendErrorMessage(`Network error: ${err.message}`);
-      }
-    });
-
-    // Quick suggestion pills
-    document.querySelectorAll(".pill-btn").forEach((pill) => {
-      pill.addEventListener("click", () => {
-        chatInput.value = pill.getAttribute("data-query");
-        chatForm.requestSubmit();
       });
-    });
+    }
 
     // Clear chat
-    clearChatBtn.addEventListener("click", async () => {
-      if (confirm("Clear current conversation history?")) {
-        await fetch(`/api/v1/chat/history?conversation_id=${conversationId}`, { method: "DELETE" });
-        chatStream.innerHTML = `
-          <div class="hero-welcome">
-            <div class="hero-badge">Conversation Cleared</div>
-            <h2>Enterprise Document Intelligence</h2>
-            <p>Ready for your next question.</p>
-          </div>
-        `;
-      }
-    });
+    if (clearChatBtn) {
+      clearChatBtn.addEventListener("click", async () => {
+        if (confirm("Clear current conversation messages?")) {
+          await fetch(`/api/v1/chat/history?conversation_id=${encodeURIComponent(conversationId)}`, { method: "DELETE" });
+          renderHeroWelcome();
+          await loadConversations();
+        }
+      });
+    }
 
     // Evaluation run button
-    runEvalBtn.addEventListener("click", async () => {
-      runEvalBtn.disabled = true;
-      runEvalBtn.innerText = "Running Test Suite...";
-      try {
-        const res = await fetch("/api/v1/evaluation/run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: "Manual Evaluation Run",
-            top_k: parseInt(topKSlider.value, 10),
-            enable_reranking: rerankToggle.checked,
-          }),
-        });
-        const report = await res.json();
-        renderEvaluationReport(report);
-      } catch (e) {
-        alert("Evaluation run failed: " + e.message);
-      } finally {
-        runEvalBtn.disabled = false;
-        runEvalBtn.innerText = "▶ Run Live Evaluation";
-      }
-    });
+    if (runEvalBtn) {
+      runEvalBtn.addEventListener("click", async () => {
+        runEvalBtn.disabled = true;
+        runEvalBtn.innerText = "Running Test Suite...";
+        try {
+          const res = await fetch("/api/v1/evaluation/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: "Manual Evaluation Run",
+              top_k: parseInt(topKSlider.value, 10),
+              enable_reranking: rerankToggle.checked,
+            }),
+          });
+          const report = await res.json();
+          renderEvaluationReport(report);
+        } catch (e) {
+          alert("Evaluation run failed: " + e.message);
+        } finally {
+          runEvalBtn.disabled = false;
+          runEvalBtn.innerText = "▶ Run Live Evaluation";
+        }
+      });
+    }
 
     // Benchmark run button
-    runBenchmarkBtn.addEventListener("click", async () => {
-      runBenchmarkBtn.disabled = true;
-      runBenchmarkBtn.innerText = "Running 3-Configuration Benchmark...";
-      try {
-        const res = await fetch("/api/v1/evaluation/benchmark", { method: "POST" });
-        const matrix = await res.json();
-        renderBenchmarkComparison(matrix.runs);
-      } catch (e) {
-        alert("Benchmark execution failed: " + e.message);
-      } finally {
-        runBenchmarkBtn.disabled = false;
-        runBenchmarkBtn.innerText = "⚡ Execute Benchmark Matrix";
-      }
-    });
+    if (runBenchmarkBtn) {
+      runBenchmarkBtn.addEventListener("click", async () => {
+        runBenchmarkBtn.disabled = true;
+        runBenchmarkBtn.innerText = "Running 3-Configuration Benchmark...";
+        try {
+          const res = await fetch("/api/v1/evaluation/benchmark", { method: "POST" });
+          const matrix = await res.json();
+          renderBenchmarkComparison(matrix.runs);
+        } catch (e) {
+          alert("Benchmark execution failed: " + e.message);
+        } finally {
+          runBenchmarkBtn.disabled = false;
+          runBenchmarkBtn.innerText = "⚡ Execute Benchmark Matrix";
+        }
+      });
+    }
 
     // Passage Modal close
-    modalCloseBtn.addEventListener("click", () => {
-      passageModal.style.display = "none";
-    });
-    passageModal.addEventListener("click", (e) => {
-      if (e.target === passageModal) passageModal.style.display = "none";
-    });
+    if (modalCloseBtn && passageModal) {
+      modalCloseBtn.addEventListener("click", () => {
+        passageModal.style.display = "none";
+      });
+      passageModal.addEventListener("click", (e) => {
+        if (e.target === passageModal) passageModal.style.display = "none";
+      });
+    }
 
     // LLM Settings Modal Event Listeners
     if (openLlmSettingsBtn) {
@@ -362,6 +466,8 @@ document.addEventListener("DOMContentLoaded", () => {
               if (data.has_gemini_key) {
                 modalGeminiKey.placeholder = "Key saved (leave empty to keep current)";
               }
+            } else if (data.provider === "ollama") {
+              if (modalOllamaModel) modalOllamaModel.value = data.active_model;
             }
             updateProviderSections(data.provider);
           }
@@ -373,8 +479,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function updateProviderSections(prov) {
-      geminiConfigSection.style.display = prov === "gemini" ? "block" : "none";
-      openaiConfigSection.style.display = prov === "openai" ? "block" : "none";
+      if (geminiConfigSection) geminiConfigSection.style.display = prov === "gemini" ? "block" : "none";
+      if (openaiConfigSection) openaiConfigSection.style.display = prov === "openai" ? "block" : "none";
+      if (ollamaConfigSection) ollamaConfigSection.style.display = prov === "ollama" ? "block" : "none";
     }
 
     if (modalProviderSelect) {
@@ -400,15 +507,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const provider = modalProviderSelect.value;
         const payload = {
           provider: provider,
-          gemini_api_key: modalGeminiKey.value.trim() || null,
-          gemini_model: modalGeminiModel.value,
-          openai_api_key: modalOpenaiKey.value.trim() || null,
-          openai_model: modalOpenaiModel.value,
+          gemini_api_key: modalGeminiKey ? modalGeminiKey.value.trim() || null : null,
+          gemini_model: modalGeminiModel ? modalGeminiModel.value : "gemini-1.5-flash",
+          openai_api_key: modalOpenaiKey ? modalOpenaiKey.value.trim() || null : null,
+          openai_model: modalOpenaiModel ? modalOpenaiModel.value : "gpt-4o-mini",
+          ollama_model: modalOllamaModel ? modalOllamaModel.value.trim() || "llama3" : "llama3",
+          ollama_base_url: modalOllamaUrl ? modalOllamaUrl.value.trim() || "http://localhost:11434" : "http://localhost:11434",
         };
 
         llmModalSaveBtn.disabled = true;
         llmModalSaveBtn.innerText = "Verifying Connection...";
-        llmModalStatus.innerText = "Testing API connection with Gemini...";
+        llmModalStatus.innerText = provider === "ollama" ? "Checking Ollama localhost:11434..." : "Testing connection...";
         llmModalStatus.className = "status-msg info";
         llmModalStatus.style.display = "block";
 
@@ -463,48 +572,207 @@ document.addEventListener("DOMContentLoaded", () => {
         docFilterSelect.appendChild(opt);
       });
 
-      // Update Sidebar List
-      if (activeDocuments.length === 0) {
-        sidebarDocList.innerHTML = `<div class="empty-state-small">No documents indexed yet. Upload a PDF or click 'Load Demo Policies' below.</div>`;
-      } else {
-        sidebarDocList.innerHTML = activeDocuments
-          .map(
-            (d) => `
-          <div class="sidebar-doc-item">
-            <span class="sidebar-doc-name" title="${d.filename}">📄 ${d.filename}</span>
-            <span class="badge badge-subtle">${d.chunk_count} ch</span>
-          </div>
-        `
-          )
-          .join("");
+      // Update Sidebar List (if present)
+      if (sidebarDocList) {
+        if (activeDocuments.length === 0) {
+          sidebarDocList.innerHTML = `<div class="empty-state-small">No documents indexed yet. Upload a PDF or click 'Load Demo Policies' below.</div>`;
+        } else {
+          sidebarDocList.innerHTML = activeDocuments
+            .map(
+              (d) => `
+            <div class="sidebar-doc-item">
+              <span class="sidebar-doc-name" title="${escapeHtml(d.filename)}">📄 ${escapeHtml(d.filename)}</span>
+              <span class="badge badge-subtle">${d.chunk_count} ch</span>
+            </div>
+          `
+            )
+            .join("");
+        }
       }
 
       // Update Docs Table
-      if (activeDocuments.length === 0) {
-        docsTableBody.innerHTML = `<tr><td colspan="7" class="text-center">No documents in database. Upload a PDF above.</td></tr>`;
-      } else {
-        docsTableBody.innerHTML = activeDocuments
-          .map(
-            (d) => `
-          <tr>
-            <td><strong>📄 ${d.filename}</strong></td>
-            <td>${d.page_count}</td>
-            <td><span class="badge badge-accent">${d.chunk_count}</span></td>
-            <td>${(d.file_size_bytes / 1024).toFixed(1)} KB</td>
-            <td><code style="font-size:0.75rem;">${d.file_hash.substring(0, 12)}...</code></td>
-            <td>${new Date(d.uploaded_at).toLocaleTimeString()}</td>
-            <td>
-              <button class="btn btn-secondary btn-sm" onclick="reindexDoc('${d.id}')">Re-index</button>
-              <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteDoc('${d.id}')">Delete</button>
-            </td>
-          </tr>
-        `
-          )
-          .join("");
+      if (docsTableBody) {
+        if (activeDocuments.length === 0) {
+          docsTableBody.innerHTML = `<tr><td colspan="7" class="text-center">No documents in database. Upload a PDF above.</td></tr>`;
+        } else {
+          docsTableBody.innerHTML = activeDocuments
+            .map(
+              (d) => `
+            <tr>
+              <td><strong>📄 ${escapeHtml(d.filename)}</strong></td>
+              <td>${d.page_count}</td>
+              <td><span class="badge badge-accent">${d.chunk_count}</span></td>
+              <td>${(d.file_size_bytes / 1024).toFixed(1)} KB</td>
+              <td><code style="font-size:0.75rem;">${d.file_hash.substring(0, 12)}...</code></td>
+              <td>${new Date(d.uploaded_at).toLocaleTimeString()}</td>
+              <td>
+                <button class="btn btn-secondary btn-sm" onclick="reindexDoc('${d.id}')">Re-index</button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteDoc('${d.id}')">Delete</button>
+              </td>
+            </tr>
+          `
+            )
+            .join("");
+        }
       }
     } catch (e) {
       console.error("Error loading documents:", e);
     }
+  }
+
+  // --- Conversation Management (ChatGPT-Style Recents) ---
+  async function loadConversations() {
+    if (!recentsList) return;
+    try {
+      const res = await fetch("/api/v1/chat/conversations");
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = data.conversations || [];
+
+      if (list.length === 0) {
+        recentsList.innerHTML = `<div class="recent-empty">No conversations yet</div>`;
+        return;
+      }
+
+      recentsList.innerHTML = list
+        .map(
+          (c) => `
+        <div class="recent-chat-item ${c.conversation_id === conversationId ? "active" : ""}" data-conv-id="${escapeHtml(c.conversation_id)}">
+          <span class="recent-chat-title" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</span>
+          <button class="delete-chat-btn" title="Delete conversation" data-conv-id="${escapeHtml(c.conversation_id)}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+        </div>
+      `
+        )
+        .join("");
+
+      // Wire item click to load history
+      recentsList.querySelectorAll(".recent-chat-item").forEach((item) => {
+        const convId = item.getAttribute("data-conv-id");
+        item.addEventListener("click", (e) => {
+          if (e.target.closest(".delete-chat-btn")) return;
+          loadConversationHistory(convId);
+        });
+      });
+
+      // Wire delete button
+      recentsList.querySelectorAll(".delete-chat-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const convId = btn.getAttribute("data-conv-id");
+          if (confirm("Delete this conversation?")) {
+            await deleteConversation(convId);
+          }
+        });
+      });
+    } catch (err) {
+      console.error("Failed to load conversations:", err);
+    }
+  }
+
+  function startNewChat() {
+    conversationId = "conv_" + Math.random().toString(36).substring(2, 9);
+    renderHeroWelcome();
+    if (recentsList) {
+      recentsList.querySelectorAll(".recent-chat-item").forEach((el) => el.classList.remove("active"));
+    }
+    switchTab("chat-tab");
+    if (chatInput) chatInput.focus();
+  }
+
+  async function loadConversationHistory(convId) {
+    conversationId = convId;
+    if (recentsList) {
+      recentsList.querySelectorAll(".recent-chat-item").forEach((el) => {
+        el.classList.toggle("active", el.getAttribute("data-conv-id") === convId);
+      });
+    }
+    switchTab("chat-tab");
+    chatStream.innerHTML = `<div class="hero-welcome"><p style="color:var(--text-muted)">Loading conversation history...</p></div>`;
+
+    try {
+      const res = await fetch(`/api/v1/chat/history?conversation_id=${encodeURIComponent(convId)}`);
+      if (!res.ok) throw new Error("Could not load chat history");
+      const data = await res.json();
+      chatStream.innerHTML = "";
+
+      if (!data.messages || data.messages.length === 0) {
+        renderHeroWelcome();
+        return;
+      }
+
+      data.messages.forEach((m) => {
+        if (m.role === "user") {
+          appendUserMessage(m.content);
+        } else {
+          appendAssistantMessage({
+            answer: m.content,
+            is_grounded: (m.sources && m.sources.length > 0) || !m.content.includes("Information Not Found"),
+            model_used: "DocRAG Grounded Model",
+            sources: m.sources,
+            retrieved_passages: m.retrieved_passages,
+            latency_ms: m.latency_ms,
+          });
+        }
+      });
+    } catch (e) {
+      chatStream.innerHTML = `<div class="hero-welcome"><p style="color:var(--danger)">Failed to load conversation: ${escapeHtml(e.message)}</p></div>`;
+    }
+  }
+
+  async function deleteConversation(convId) {
+    try {
+      const res = await fetch(`/api/v1/chat/conversations/${encodeURIComponent(convId)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        if (conversationId === convId) {
+          startNewChat();
+        }
+        await loadConversations();
+      }
+    } catch (err) {
+      alert("Could not delete conversation: " + err.message);
+    }
+  }
+
+  function renderHeroWelcome() {
+    chatStream.innerHTML = `
+      <div class="hero-welcome">
+        <div class="hero-badge">Enterprise Document RAG Architecture</div>
+        <h2>Grounded Semantic Search & Document Intelligence</h2>
+        <p>Upload enterprise policies, manuals, or contracts and query with strict hallucination protection and exact source page attribution.</p>
+        
+        <div class="query-suggestions-title">Try asking an example question:</div>
+        <div class="query-pills">
+          <button class="pill-btn" data-query="What is the company's annual leave policy?">
+            📋 "What is the annual leave policy?"
+          </button>
+          <button class="pill-btn" data-query="What is the daily meal allowance for business travel?">
+            ✈️ "What is the travel meal allowance?"
+          </button>
+          <button class="pill-btn" data-query="What are the minimum hardware specifications for Titan Cloud Gateway?">
+            🖥️ "Titan Gateway hardware specs?"
+          </button>
+          <button class="pill-btn" data-query="What is the stock option equity vesting schedule for interns?">
+            🛡️ "Intern stock options?" (Hallucination Test)
+          </button>
+        </div>
+      </div>
+    `;
+    attachPillListeners();
+  }
+
+  function attachPillListeners() {
+    document.querySelectorAll(".pill-btn").forEach((pill) => {
+      pill.addEventListener("click", () => {
+        if (chatInput && chatForm) {
+          chatInput.value = pill.getAttribute("data-query");
+          chatForm.requestSubmit();
+        }
+      });
+    });
   }
 
   // Window helper functions for table action buttons
@@ -561,7 +829,11 @@ document.addEventListener("DOMContentLoaded", () => {
     div.className = "chat-msg assistant";
     div.id = id;
 
-    const groundedBadge = resp.is_grounded
+    const answerText = resp.answer || resp.content || "";
+    const isGrounded = resp.is_grounded !== undefined ? resp.is_grounded : (resp.sources && resp.sources.length > 0);
+    const modelUsed = resp.model_used || "DocRAG Grounded Model";
+
+    const groundedBadge = isGrounded
       ? `<span class="badge badge-grounded">100% Grounded</span>`
       : `<span class="badge badge-ungrounded">Information Not Found</span>`;
 
@@ -621,18 +893,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const latencyText = resp.latency_breakdown
       ? `<span title="ChromaDB Retrieval: ${resp.latency_breakdown.retrieval_ms}ms | BM25 Rerank: ${resp.latency_breakdown.rerank_ms}ms | LLM Synthesis: ${resp.latency_breakdown.synthesis_ms}ms" style="cursor:help;">⚡ ${resp.latency_ms} ms (retrieval: ${resp.latency_breakdown.retrieval_ms}ms • rerank: ${resp.latency_breakdown.rerank_ms}ms)</span>`
-      : `<span>⚡ ${resp.latency_ms} ms</span>`;
+      : `<span>⚡ ${resp.latency_ms != null ? resp.latency_ms : 0} ms</span>`;
 
     div.innerHTML = `
       <div class="msg-bubble">
         <div class="msg-header">
           <div style="display:flex; align-items:center; gap:8px;">
-            <strong>DocRAG Engine (${resp.model_used})</strong>
+            <strong>${escapeHtml(modelUsed)}</strong>
             ${groundedBadge}
           </div>
           ${latencyText}
         </div>
-        <div class="msg-text">${formatAnswerMarkdown(resp.answer)}</div>
+        <div class="msg-text">${formatAnswerMarkdown(answerText)}</div>
         ${sourcesHtml}
         ${passagesHtml}
       </div>

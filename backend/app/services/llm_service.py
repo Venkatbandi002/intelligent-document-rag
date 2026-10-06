@@ -56,12 +56,16 @@ Instructions: Answer the question using ONLY the context above. Cite every factu
 Answer:"""
 
         active_provider = settings.LLM_PROVIDER
-        if (active_provider == "gemini" or settings.GEMINI_API_KEY) and settings.GEMINI_API_KEY:
+        if active_provider == "gemini" and settings.GEMINI_API_KEY:
             return self._call_gemini(user_prompt, context_passages, query)
         elif active_provider == "openai" and settings.OPENAI_API_KEY:
             return self._call_openai(user_prompt, context_passages, query)
         elif active_provider == "ollama":
             return self._call_ollama(user_prompt, context_passages, query)
+        elif settings.GEMINI_API_KEY:
+            return self._call_gemini(user_prompt, context_passages, query)
+        elif settings.OPENAI_API_KEY:
+            return self._call_openai(user_prompt, context_passages, query)
         else:
             return self._call_mock_grounded_extractor(query, context_passages)
 

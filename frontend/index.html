@@ -6,154 +6,123 @@
   <title>Enterprise Document Intelligence RAG System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik+Dirt&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
-  <div class="app-layout">
-    <!-- Top Navigation Header -->
-    <header class="top-nav">
-      <div class="brand-section">
-        <div class="brand-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-            <polyline points="10 9 9 9 8 9"></polyline>
+  <div class="app-layout" id="app-layout">
+    <!-- Left Sidebar: Full Vertical Height (100vh) -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Sidebar Header with DocRAG Title and Sidebar Toggle Button -->
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <h1 class="brand-title rubik-dirt-regular">DocRAG</h1>
+        </div>
+        <button class="icon-btn sidebar-toggle-btn" id="sidebar-toggle-btn" title="Toggle Sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="9" y1="3" x2="9" y2="21"></line>
           </svg>
-        </div>
-        <div>
-          <h1 class="brand-title">Enterprise DocRAG <span class="badge badge-accent">AI Engineer Portfolio</span></h1>
-          <p class="brand-subtitle">Production-Style Retrieval-Augmented Generation with Precision Attribution</p>
-        </div>
+        </button>
       </div>
 
-      <nav class="nav-tabs">
-        <button class="nav-tab active" data-tab="chat-tab">
+      <!-- New Chat Button -->
+      <div class="sidebar-top-action">
+        <button class="new-chat-btn" id="new-chat-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          <span>New chat</span>
+        </button>
+      </div>
+
+      <!-- Sidebar Navigation Items -->
+      <nav class="sidebar-nav">
+        <button class="sidebar-nav-item active" data-tab="chat-tab" id="nav-item-chat">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-          Chat & Retrieval
+          <span class="nav-text">Chat & Retrieval</span>
         </button>
-        <button class="nav-tab" data-tab="docs-tab">
+        <button class="sidebar-nav-item" data-tab="ingest-tab" id="nav-item-ingest">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          <span class="nav-text">PDF Ingestion & Tuning</span>
+        </button>
+        <button class="sidebar-nav-item" data-tab="docs-tab" id="nav-item-docs">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
-          Documents (<span id="tab-doc-count">0</span>)
+          <span class="nav-text">Documents</span>
+          <span class="sidebar-badge" id="tab-doc-count">0</span>
         </button>
-        <button class="nav-tab" data-tab="eval-tab">
+        <button class="sidebar-nav-item" data-tab="eval-tab" id="nav-item-eval">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
-          Evaluation Dashboard
+          <span class="nav-text">Evaluation Dashboard</span>
         </button>
-        <button class="nav-tab" data-tab="benchmark-tab">
+        <button class="sidebar-nav-item" data-tab="benchmark-tab" id="nav-item-benchmark">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-          Optimization Benchmark
+          <span class="nav-text">Optimization Benchmark</span>
         </button>
       </nav>
 
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <div class="system-status">
-          <span class="status-indicator"></span>
-          <span id="system-status-text">LLM Engine: Initializing...</span>
+      <!-- Section: Recents (ChatGPT-Style) -->
+      <div class="sidebar-section-header">
+        <span>Recents</span>
+      </div>
+      <div class="recents-list-container" id="recents-list-container">
+        <div class="recents-list" id="recents-list">
+          <div class="recent-empty">No conversations yet</div>
         </div>
-        <button class="btn btn-secondary btn-sm" id="open-llm-settings-btn" title="Configure Real Gemini or Local LLM">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          Configure LLM
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="sidebar-footer">
+        <div class="corpus-indicator-row">
+          <span class="status-indicator"></span>
+          <span id="sidebar-chunk-count">0 chunks indexed</span>
+        </div>
+        <button class="icon-action-btn" id="clear-chat-btn" title="Clear current chat view">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
         </button>
       </div>
-    </header>
+    </aside>
 
-    <div class="main-body">
-      <!-- Left Sidebar: Controls & Document Management -->
-      <aside class="sidebar">
-        <!-- Document Upload Card -->
-        <div class="sidebar-card">
-          <div class="card-header">
-            <h3>Ingest PDF Document</h3>
+    <!-- Main Section (To the right of full-height sidebar) -->
+    <div class="main-body" id="main-body">
+      <!-- Floating Dock Navigation Bar -->
+      <header class="dock-nav-wrapper">
+        <div class="dock-bar" id="dock-bar">
+          <!-- Left Column: Section Heading (when open) OR Expand Button + DocRAG logo (when closed) -->
+          <div class="dock-left-col" id="dock-left-col">
+            <div class="dock-collapsed-brand" id="dock-collapsed-brand" style="display: none;">
+              <button class="icon-btn dock-expand-btn" id="dock-sidebar-expand-btn" title="Expand Sidebar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="9" y1="3" x2="9" y2="21"></line>
+                </svg>
+              </button>
+              <span class="dock-brand-title rubik-dirt-regular">DocRAG</span>
+            </div>
+            <h2 class="dock-title" id="active-view-name">Chat & Grounded Retrieval</h2>
           </div>
-          <form id="upload-form" class="upload-dropzone" enctype="multipart/form-data">
-            <input type="file" id="file-input" accept=".pdf" style="display: none;" />
-            <div class="dropzone-content" id="dropzone-trigger">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-              </svg>
-              <p><strong>Click or Drag PDF</strong> to upload</p>
-              <span class="subtext">Auto-deduplicated via SHA-256</span>
-            </div>
-            
-            <div class="advanced-ingest-toggle" id="advanced-toggle">
-              <span>Ingestion Config ▾</span>
-            </div>
-            <div class="advanced-params" id="advanced-params" style="display: none;">
-              <div class="param-row">
-                <label for="chunk-size">Chunk Size: <span id="chunk-size-val">600</span> chars</label>
-                <input type="range" id="chunk-size" min="300" max="1500" step="50" value="600" />
-              </div>
-              <div class="param-row">
-                <label for="chunk-overlap">Chunk Overlap: <span id="chunk-overlap-val">100</span> chars</label>
-                <input type="range" id="chunk-overlap" min="0" max="300" step="25" value="100" />
-              </div>
-            </div>
 
-            <button type="submit" class="btn btn-primary btn-block" id="upload-btn" style="margin-top: 10px;">
-              Ingest & Index Document
+          <!-- Center Column: Section Heading centered when sidebar is closed -->
+          <div class="dock-center-col" id="dock-center-col"></div>
+
+          <!-- Right Column: Provider Status Pill & Configure LLM side-by-side -->
+          <div class="dock-right-col" id="dock-right-col">
+            <div class="system-status active-view-pill">
+              <span class="status-indicator"></span>
+              <span id="system-status-text">LLM Engine: Initializing...</span>
+            </div>
+            <button class="btn btn-secondary btn-sm dock-action-btn" id="open-llm-settings-btn" title="Configure Real Gemini or Local LLM">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              Configure LLM
             </button>
-          </form>
-          <div id="upload-status" class="status-msg"></div>
-        </div>
-
-        <!-- Retrieval Hyperparameters -->
-        <div class="sidebar-card">
-          <div class="card-header">
-            <h3>Retrieval Settings</h3>
-          </div>
-          <div class="param-group">
-            <div class="param-label-row">
-              <label for="top-k-slider">Top-K Context Chunks:</label>
-              <span class="param-val" id="top-k-val">4</span>
-            </div>
-            <input type="range" id="top-k-slider" min="1" max="10" value="4" />
-          </div>
-
-          <div class="toggle-group">
-            <label class="switch-label">
-              <input type="checkbox" id="rerank-toggle" checked />
-              <span class="switch-slider"></span>
-              <span class="switch-text">BM25 Hybrid Reranking</span>
-            </label>
-            <span class="tooltip-hint">Reranks candidate chunks combining vector cosine & lexical BM25</span>
-          </div>
-
-          <div class="param-group" style="margin-top: 12px;">
-            <label for="doc-filter-select">Metadata Scope Filter:</label>
-            <select id="doc-filter-select" class="form-select">
-              <option value="">All Uploaded Documents</option>
-            </select>
           </div>
         </div>
-
-        <!-- Ingested Documents List -->
-        <div class="sidebar-card doc-list-card">
-          <div class="card-header">
-            <h3>Active Corpus</h3>
-            <span class="badge badge-subtle" id="sidebar-chunk-count">0 chunks</span>
-          </div>
-          <div class="sidebar-doc-list" id="sidebar-doc-list">
-            <div class="empty-state-small">No documents indexed yet. Upload a PDF or click 'Load Demo Policies' below.</div>
-          </div>
-          <button class="btn btn-secondary btn-block btn-sm" id="load-sample-docs-btn" style="margin-top: 8px;">
-            ⚡ Load Sample Enterprise PDFs
-          </button>
-        </div>
-
-        <!-- Clear Chat -->
-        <button class="btn btn-ghost btn-block" id="clear-chat-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-          Clear Conversation History
-        </button>
-      </aside>
+      </header>
 
       <!-- Center Content Canvas -->
-      <main class="main-canvas">
+      <main class="main-canvas" id="main-canvas">
         <!-- TAB 1: Chat Interface -->
         <section id="chat-tab" class="tab-pane active">
           <div class="chat-container">
@@ -201,6 +170,145 @@
               <div class="input-footer">
                 <span>Strict Grounding active: Answers only cite verified passages</span>
                 <span id="active-config-indicator">Top-K: 4 | Rerank: ON</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 2: Dedicated PDF Ingestion & RAG Tuning Studio -->
+        <section id="ingest-tab" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2>PDF Ingestion & RAG Hyperparameter Studio</h2>
+              <p>Upload enterprise documentation, tune semantic chunking boundaries, and calibrate dense & hybrid retrieval hyperparameters.</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-secondary" id="load-sample-docs-btn">
+                ⚡ Load Sample Grounded Documents
+              </button>
+            </div>
+          </div>
+
+          <div class="ingest-studio-grid">
+            <!-- Left Column: PDF Ingestion & Chunking -->
+            <div class="ingest-card">
+              <div class="ingest-card-header">
+                <div class="ingest-badge-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                </div>
+                <div>
+                  <h3>PDF Document Ingestion Studio</h3>
+                  <p>Extract text, deduplicate via SHA-256 hash, and index into ChromaDB vector store</p>
+                </div>
+              </div>
+
+              <form id="upload-form" class="upload-dropzone studio-dropzone" enctype="multipart/form-data">
+                <input type="file" id="file-input" accept=".pdf" style="display: none;" />
+                <div class="dropzone-content studio-dropzone-content" id="dropzone-trigger">
+                  <div class="dropzone-icon-circle">
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                  </div>
+                  <h4>Drag & Drop PDF or Click to Select File</h4>
+                  <span class="subtext">Supported format: PDF up to 50MB &bull; Automatic SHA-256 deduplication</span>
+                </div>
+
+                <div class="chunking-params-card">
+                  <div class="params-card-header">
+                    <h4>Chunking Boundary Parameters</h4>
+                    <span class="tuning-pill">RecursiveTextSplitter</span>
+                  </div>
+                  
+                  <div class="studio-param-row">
+                    <div class="param-label-row">
+                      <label for="chunk-size">Chunk Size: <span class="param-val" id="chunk-size-val">600</span> chars</label>
+                      <span class="param-recommended">Recommended: 500 - 800</span>
+                    </div>
+                    <input type="range" id="chunk-size" min="300" max="1500" step="50" value="600" />
+                    <span class="param-caption">Determines maximum characters per semantic fragment passed to the embedding encoder.</span>
+                  </div>
+
+                  <div class="studio-param-row">
+                    <div class="param-label-row">
+                      <label for="chunk-overlap">Chunk Overlap: <span class="param-val" id="chunk-overlap-val">100</span> chars</label>
+                      <span class="param-recommended">Recommended: 50 - 150</span>
+                    </div>
+                    <input type="range" id="chunk-overlap" min="0" max="300" step="25" value="100" />
+                    <span class="param-caption">Overlaps consecutive chunks to preserve sentence continuity and avoid split-boundary context loss.</span>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block" id="upload-btn" style="margin-top: 16px; padding: 12px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  <span>Ingest & Index Document</span>
+                </button>
+              </form>
+              <div id="upload-status" class="status-msg"></div>
+            </div>
+
+            <!-- Right Column: RAG Retrieval & Reranker Calibration -->
+            <div class="ingest-card">
+              <div class="ingest-card-header">
+                <div class="ingest-badge-icon blue">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </div>
+                <div>
+                  <h3>RAG Retrieval & Reranker Calibration</h3>
+                  <p>Fine-tune dense semantic vector search depth and cross-encoder re-ranking pipeline</p>
+                </div>
+              </div>
+
+              <div class="retrieval-tuning-panel">
+                <div class="studio-param-row">
+                  <div class="param-label-row">
+                    <label for="top-k-slider">Top-K Retrieved Context Chunks: <span class="param-val" id="top-k-val">4</span></label>
+                    <span class="param-recommended">Default: 4</span>
+                  </div>
+                  <input type="range" id="top-k-slider" min="1" max="10" value="4" />
+                  <span class="param-caption">Controls how many highest-scoring passages are supplied to the LLM grounding prompt.</span>
+                </div>
+
+                <div class="rerank-card-highlight">
+                  <div class="rerank-toggle-header">
+                    <label class="switch-label">
+                      <input type="checkbox" id="rerank-toggle" checked />
+                      <span class="switch-slider"></span>
+                      <span class="switch-title">Cross-Encoder Re-Ranking</span>
+                    </label>
+                    <span class="rerank-badge">ms-marco-MiniLM-L-6-v2</span>
+                  </div>
+                  <p class="rerank-explainer">
+                    Performs deep cross-attention between query and candidate passages to discard irrelevant context and re-order the most relevant passage to Rank #1.
+                  </p>
+                </div>
+
+                <div class="studio-param-row" style="margin-top: 14px;">
+                  <label for="doc-filter-select" style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">
+                    Metadata Scope Filter (Tenant / Document Scope):
+                  </label>
+                  <select id="doc-filter-select" class="form-select">
+                    <option value="">All Uploaded Documents (Global Search)</option>
+                  </select>
+                  <span class="param-caption">Restricts semantic retrieval to a specific document to prevent cross-document contamination.</span>
+                </div>
+
+                <div class="rag-architecture-summary">
+                  <h4>Active Ingestion & Inference Pipeline</h4>
+                  <div class="pipeline-flow-pills">
+                    <span class="flow-pill">PDF Extraction</span>
+                    <span class="flow-arrow">&rarr;</span>
+                    <span class="flow-pill">SHA-256 Dedupe</span>
+                    <span class="flow-arrow">&rarr;</span>
+                    <span class="flow-pill">all-MiniLM-L6-v2</span>
+                    <span class="flow-arrow">&rarr;</span>
+                    <span class="flow-pill">ChromaDB</span>
+                    <span class="flow-arrow">&rarr;</span>
+                    <span class="flow-pill">Cross-Encoder</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -391,6 +499,19 @@
               <option value="gpt-4o-mini">gpt-4o-mini</option>
               <option value="gpt-4o">gpt-4o</option>
             </select>
+          </div>
+        </div>
+
+        <div id="ollama-config-section" style="display: none;">
+          <div class="param-group" style="margin-bottom: 14px;">
+            <label style="font-weight: 600; font-size: 0.82rem;">Ollama Model Name:</label>
+            <input type="text" id="modal-ollama-model" value="llama3" placeholder="e.g. llama3, mistral, llama3.2, phi3" class="form-select" style="margin-top: 4px; font-family: var(--font-mono);" />
+            <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Ensure you pulled this model via <code>ollama run &lt;model&gt;</code></span>
+          </div>
+          <div class="param-group" style="margin-bottom: 14px;">
+            <label style="font-weight: 600; font-size: 0.82rem;">Ollama Server Base URL:</label>
+            <input type="text" id="modal-ollama-url" value="http://localhost:11434" placeholder="http://localhost:11434" class="form-select" style="margin-top: 4px; font-family: var(--font-mono);" />
+            <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Default: http://localhost:11434 (zero API keys needed)</span>
           </div>
         </div>
 

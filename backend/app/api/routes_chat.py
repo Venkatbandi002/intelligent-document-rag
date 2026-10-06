@@ -82,6 +82,49 @@ async def get_history(conversation_id: str = Query("default")):
     )
 
 
+@router.get("/conversations")
+async def list_conversations():
+    """Returns a list of conversation sessions with title, count, and timestamp."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT 
+            conversation_id,
+            MIN(CASE WHEN role = 'user' THEN content END) as first_question,
+            COUNT(*) as message_count,
+            MAX(created_at) as last_activity
+        FROM chat_messages
+        GROUP BY conversation_id
+        ORDER BY last_activity DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+
+    conversations = []
+    for r in rows:
+        title = r["first_question"] or "Conversation"
+        if len(title) > 36:
+            title = title[:36] + "..."
+        conversations.append({
+            "conversation_id": r["conversation_id"],
+            "title": title,
+            "message_count": r["message_count"],
+            "last_activity": r["last_activity"],
+        })
+    return {"conversations": conversations}
+
+
+@router.delete("/conversations/{conversation_id}")
+async def delete_conversation(conversation_id: str):
+    """Deletes all messages for a specific conversation session."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM chat_messages WHERE conversation_id = ?", (conversation_id,))
+    conn.commit()
+    conn.close()
+    return {"message": f"Conversation '{conversation_id}' deleted."}
+
+
 @router.delete("/history")
 async def clear_history(conversation_id: str = Query("default")):
     """Clears chat messages for a conversation session."""
@@ -91,3 +134,4 @@ async def clear_history(conversation_id: str = Query("default")):
     conn.commit()
     conn.close()
     return {"message": f"Chat history for conversation '{conversation_id}' cleared."}
+
